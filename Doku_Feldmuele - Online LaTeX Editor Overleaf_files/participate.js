@@ -1,0 +1,1 @@
+sixpack.callback1({"status": "ok", "alternative": {"name": "default"}, "experiment": {"name": "bib-search-highlight"}, "client_id": "5bd09e7e1ae53d317f17a39a"})

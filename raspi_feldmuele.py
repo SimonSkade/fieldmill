@@ -24,10 +24,8 @@ GAIN = 2/3
 
 GPIO.setmode(GPIO.BCM)
 
-out = 4
-
-N = 40
-GPIO.setup(out, GPIO.OUT)
+out = 4 #pin der die Feldmühle anschaltet
+N = 600 #Anzahl Datenpunkte
 
 def messung(N):
     X = []
@@ -38,50 +36,64 @@ def messung(N):
     return np.asarray(X), duration
 
 
-GPIO.output(out, True) #schaltet Feldmuehle an
-
-time.sleep(3)
-
 def f(X, duration): #frequency
     fft = np.fft.fft(X) #/len(X)
-    print(fft)
-    max=0
-    plt.plot(frq,abs(Y),'r') # plotting the spectrum
-    plt.set_xlabel('Freq (Hz)')
-    plt.set_ylabel('|Y(freq)|')
-    plt.show()
+    n = len(fft)//2 + 1
+    Y = np.abs(fft[:n])
 
-    for i in range(len(fft)):
-        if fft[i]>max:
-            max=fft[i]
+    st = duration/len(X)
+    sf = 1/st
+    x_ax = np.linspace(0, sf/2, n)
+    
+    #print(Y)
+    #plt.plot(x_ax,abs(Y),'r') # plotting the spectrum
+    #plt.set_xlabel('Freq (Hz)')
+    #plt.show()
+    val_max = 0
+    for i, val in enumerate(Y): #search index of the highest value in fft
+        if val > val_max:
+            val_max = val
             index = i
-    freq = index*duration/len(fft)
+    freq = x_ax[index]
     return freq
 
+def amp(X, freq, duration):
+    maxs = []
+    mins = []
+    wdhs = duration*freq
+    rep_size = len(X)//wdhs
+    for i in range(wdhs):
+        maxs.append(np.amax(X[i*rep_size:(i+1)*rep_size]))
+        mins.append(np.amin(X[i*rep_size:(i+1)*rep_size]))
+    amp = (np.mean(maxs - mins)) / 2
 
 def deviation(X): #amplitude
     mean = float(np.sum(X))/len(X)
-    print(mean)
+    #print("mean: "mean)
     variation = np.sum((X - mean)**2)/len(X)
-    print(variation)
+    #print("variation: "variation)
     return np.sqrt(variation)
 
-A = 22 #area
-eps0 = 0.00000000000885 #epsilon0 / permittivity constant
-R = 1000000 #resistor value
-#freq = f()
+A = 0.0019242 #area of segment pair [m**2]
+eps0 = 8.854*10**(-12) #epsilon0 / permittivity constant [F/m]
+R = 1000000 #resistor value [Ohm]
+#freq = f() #[Hz]
 count = 0
 
 
+"""
 X, duration = messung(N)
-print("X: ", X)
+print("amount datapoints: ", len(X))
+print("data/values: ", X)
 print("duration: ", duration)
 deviation = deviation(X)
 print("deviation: ", deviation)
 #plt.plot(X)
 #plt.show()
-#print("freq: ", f(X, duration))
-GPIO.cleanup()
+print("freq: ", f(X, duration))
+
+#GPIO.output(out, False)
+#GPIO.cleanup()
 
 """
 #Daten auswerten und vergleichen ob gespeichert werden soll
@@ -89,12 +101,17 @@ e_start = 1000
 e_end = 900
 try:
     while True:
-        e = amp()/4*A*eps0*R*freq
+        GPIO.setup(out, GPIO.OUT)
+        GPIO.output(out, True) #schaltet Feldmuehle an
+        time.sleep(1)
+        X, duration = messung(N)
+        freq = f(X, duration)
+        amp = amp(X, freq)
+        dev = deviation(X)
+        e = amp/4*A*eps0*R*freq
         if e>=e_start:
             X = []
             count += 1
-            #time.start()
-            #e_max = e
             name = "Messung"
             num = str(count)
             date_time = str(time.time())
@@ -102,8 +119,6 @@ try:
             f = open(title + ".txt","a") #der Pfad muss noch bestimmt werden
             while e>=e_end:
                 #Daten speichern und plotten
-                #if e>=e_max:
-                #    e_max=e
                 e = amp()/4*A*eps0*R*freq
                 e_str = str(e)
                 f.write(e_str)
@@ -114,15 +129,10 @@ try:
             plt.plot(X[:,0], X[:,1])
             plt.savefig(title + ".png") #der Pfad muss noch bestimmt werden
         else:
-            time.sleep(0.2)
-        if keyboard.is_pressed('q'):
-            break
+            time.sleep(10)
 except KeyboardInterrupt:
     GPIO.cleanup()
     exit()
+except:
+    GPIO.cleanup()
 
-
-
-GPIO.cleanup()
-
-"""

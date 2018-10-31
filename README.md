@@ -14,7 +14,7 @@ On two adjacent segments, a 1M ohm resistor is connected between the front and b
 ###How it works
 
 The copper segments gain charge from the electric field in the air. When the rotor comes over a segment, it absorbes the charges so that the segment gets less and vice versa when the rotor moves away from a segment.
-Through that, there is a equipotential difference which results in voltage and current.
+Through that, there is a potential difference which results in voltage and current.
 Over the 1M ohm resistor, we measure the voltage. We can calculate the sensitivity (you see how in Instructions-->Program-->find limit) to find out the actual electric field out of our voltage output.
 
 In our case the output voltage goes to a analog digital converter (we use the ADS1115) and then to the raspberry pi (zero W). If a high limit is touched, the pi saves the data, so we can analyze the data.
@@ -32,7 +32,7 @@ Also it is just an interesting measuring device.
 You need a filedmill. You may need to design and build one on your own. Maybe you find an instruction on the internet.
 I am trying to release the cnc models we used for our fieldmill (I have not desingned them myself).
 
-You need a raspberry pi. (We are using a raspberry pi zero W, but every Pi works. A wireless connection opportunity is recommended.=. Further you need an ADC. We recommend the ADS1115, because then you can just run our program.
+You need a raspberry pi. (We are using a raspberry pi zero W, but every Pi works. A wireless connection opportunity is recommended. Further you need an ADC. We recommend the ADS1115, because then you can just run our program.
 
 ####Wirering
 

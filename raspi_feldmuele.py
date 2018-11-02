@@ -2,15 +2,14 @@
 #import sys
 import RPi.GPIO as GPIO
 import time
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 import Adafruit_ADS1x15
 #import keyboard
 import numpy as np
+import datetime
 
 # Create an ADS1115 ADC (16-bit) instance.
 adc = Adafruit_ADS1x15.ADS1115()
-
-
 # Choose a gain of 1 for reading voltages from 0 to 4.09V.
 # Or pick a different gain to change the range of voltages that are read:
 #  - 2/3 = +/-6.144V
@@ -25,7 +24,7 @@ GAIN = 2/3
 GPIO.setmode(GPIO.BCM)
 
 out = 4 #pin der die Feldmühle anschaltet
-N = 600 #Anzahl Datenpunkte
+N = 200 #Anzahl Datenpunkte
 
 def messung(N):
     X = []
@@ -61,11 +60,13 @@ def amp(X, freq, duration):
     maxs = []
     mins = []
     wdhs = duration*freq
+    wdhs = int(wdhs)
     rep_size = len(X)//wdhs
     for i in range(wdhs):
         maxs.append(np.amax(X[i*rep_size:(i+1)*rep_size]))
         mins.append(np.amin(X[i*rep_size:(i+1)*rep_size]))
-    amp = (np.mean(maxs - mins)) / 2
+    amp = (np.mean(np.asarray(maxs) - np.asarray(mins))) / 2
+    return amp
 
 def deviation(X): #amplitude
     mean = float(np.sum(X))/len(X)
@@ -75,12 +76,13 @@ def deviation(X): #amplitude
     return np.sqrt(variation)
 
 A = 0.0019242 #area of segment pair [m**2]
-eps0 = 8.854*10**(-12) #epsilon0 / permittivity constant [F/m]
+EPS0 = 8.854*10**(-12) #epsilon0 / permittivity constant [F/m]
 R = 1000000 #resistor value [Ohm]
 #freq = f() #[Hz]
 count = 0
 
-
+max_val = 2**16
+wide = 2*6.144 # bitte bei GAIN einstellungen nachschauen.
 """
 X, duration = messung(N)
 print("amount datapoints: ", len(X))
@@ -90,15 +92,17 @@ deviation = deviation(X)
 print("deviation: ", deviation)
 #plt.plot(X)
 #plt.show()
-print("freq: ", f(X, duration))
-
+freq=f(X, duration
+print("freq: ", freq))
+amp=amp(X, freq
+print("amp: ", amp))
+print("E = ", amp/4*A*eps0*R*freq)
 #GPIO.output(out, False)
 #GPIO.cleanup()
-
 """
 #Daten auswerten und vergleichen ob gespeichert werden soll
-e_start = 1000
-e_end = 900
+e_start = 3000
+e_end = 2800
 try:
     while True:
         GPIO.setup(out, GPIO.OUT)
@@ -106,33 +110,39 @@ try:
         time.sleep(1)
         X, duration = messung(N)
         freq = f(X, duration)
-        amp = amp(X, freq)
+        amplitude = amp(X, freq, duration)
         dev = deviation(X)
-        e = amp/4*A*eps0*R*freq
+        e = amplitude/(4*A*EPS0*R*freq) * wide / max_val
+        print("E = {}, amp = {}, freq = {}, deviation = {}, duration = {}".format(e, amplitude, freq, dev, duration))
         if e>=e_start:
-            X = []
+            Y = []
             count += 1
-            name = "Messung"
+            name = "Messung_"
             num = str(count)
-            date_time = str(time.time())
-            title = name + num + date_time
-            f = open(title + ".txt","a") #der Pfad muss noch bestimmt werden
-            while e>=e_end:
-                #Daten speichern und plotten
-                e = amp()/4*A*eps0*R*freq
+            date_time = str(datetime.datetime.now())
+            title = name + num + '_' + date_time
+            file = open("results/" + title + ".txt","a")
+            while e>=e_end: #Daten speichern und plotten
+                GPIO.setup(out, GPIO.OUT)
+                GPIO.output(out, True) #schaltet Feldmuehle an
+                time.sleep(1)
+                X, duration = messung(N)
+                freq = f(X, duration)
+                amplitude = amp(X, freq, duration)
+                dev = deviation(X)
+                e = amplitude/(4*A*EPS0*R*freq) * wide / max_val
+                print("E = {}, amp = {}, freq = {}, deviation = {}, duration = {}".format(e, amplitude, freq, dev, duration))
+                
                 e_str = str(e)
-                f.write(e_str)
-                X.append([time.time(), e])
-                time.sleep(0.01)
-            #time.end()
-            plt.figure(0)
-            plt.plot(X[:,0], X[:,1])
-            plt.savefig(title + ".png") #der Pfad muss noch bestimmt werden
+                file.write(str(time.time()) + ' ' + e_str + '\n')
+                Y.append([time.time(), e])
+                time.sleep(0.1)
+            #Y = np.array(Y)
+            #plt.plot(Y[:,0], Y[:,1])
+            #plt.savefig("results/" + title + ".png")
+            file.close()
         else:
             time.sleep(10)
 except KeyboardInterrupt:
-    GPIO.cleanup()
-    exit()
-except:
     GPIO.cleanup()
 
